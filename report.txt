@@ -3,5 +3,5 @@
 2. Accuracy in source-only modal = 66.56 {using algo15l.ms}, ignoring the data points which has labeling 2. since we have not learnt in source data for labeling2
 
 
-3. Accuracy in target-only modal (avg of 5 try) = 55.58 % {b/w 50%, 60%}
-
+3. Accuracy in target-only modal (avg of 5 try) = 52.58 % {b/w 50%, 60%}
+4. Accuracy in 

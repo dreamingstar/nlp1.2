@@ -8,7 +8,7 @@ from nltk.tokenize import TweetTokenizer
 from nltk.sentiment import *
 import csv,re,random, math, nltk, pickle
 
-random.seed(1296441);
+#random.seed(1);
 tknzr = TweetTokenizer();
 
 def clean_string(inp):
@@ -21,14 +21,14 @@ def splitter(inp):
 	return tokens;
 
 _isloading = False;
-dumpname = "algo_target600";
+dumpname = "algo_15l";
 
-def read_csv(fn, isdoshuufle = False):
+def read_csv(fn, shuffled = False):
 	csvfd = open(fn, 'rb');
 	sp = csv.reader(csvfd)
 	csvdata =  list(row for row in sp);
 	csvfd.close();
-	if(isdoshuufle):
+	if(shuffled):
 		random.shuffle(csvdata);
 	return csvdata;
 
@@ -48,9 +48,9 @@ def mainfunc():
 
 	if(False):
 		count = 1;
-		for row in csvdata:
+		for row in sourcecsv:
 			wordbag = splitter(row[1]);
-			if(count <= (len(csvdata)*10)/100):
+			if(count <= (len(sourcecsv)*10)/100):
 				datatest.append((row[0], row[1], wordbag))
 			else:
 				if(_isloading):
@@ -64,9 +64,21 @@ def mainfunc():
 			wordbag = splitter(row[1]);
 			datatest.append((row[0], row[1], wordbag));
 	elif(True):
+		f = open( "CV"+dumpname+".ms", "r" );
+		CV = pickle.load(f);
+		f.close();
+
+		load_learnt = open( dumpname+".ms", "r" );
+		clf = pickle.load( load_learnt );
+		load_learnt.close();
+
+		# X1 = CV.transform(list(" ".join(i[2]) for i in datatest))
+		# y1 = clf.predict(X1);
 		count = 1;
 		for row in targetcsv:
 			wordbag = splitter(row[1]);
+			newf = "SpecialFeature"+clf.predict( CV.transform([ " ".join(wordbag)  ]) )[0];
+			wordbag += [newf];
 			if(count <=  (len(targetcsv)*12)/100 ):
 				datatest.append((row[0], row[1], wordbag));
 			else:
@@ -79,9 +91,10 @@ def mainfunc():
 		CV = sklearn.feature_extraction.text.CountVectorizer()
 		X = CV.fit_transform(list(" ".join(i[2]) for i in data))
 		y = np.array(list(i[0] for i in data));
-		f = open( "CV"+dumpname+".ms", "wb" );
-		pickle.dump(CV, f);
-		f.close();
+		if(False):
+			f = open( "CV"+dumpname+".ms", "wb" );
+			pickle.dump(CV, f);
+			f.close();
 	else:
 		f = open( "CV"+dumpname+".ms", "r" );
 		CV = pickle.load(f);
@@ -97,13 +110,17 @@ def mainfunc():
 			clf = LinearSVC();
 		clf.fit(X, y);
 		print "Learnt !... Ready to save in a file";
-		dump_learnt = open(dumpname+".ms", "wb");
-		pickle.dump(clf, dump_learnt);
-		dump_learnt.close();
+		if(False):
+			dump_learnt = open(dumpname+".ms", "wb");
+			pickle.dump(clf, dump_learnt);
+			dump_learnt.close();
 	else:
 		load_learnt = open( dumpname+".ms", "r" );
 		clf = pickle.load( load_learnt );
 		load_learnt.close();
+
+
+
 
 	X1 = CV.transform(list(" ".join(i[2]) for i in datatest))
 
