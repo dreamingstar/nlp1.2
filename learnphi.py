@@ -11,9 +11,7 @@ from nltk.sentiment import *
 import csv,re,random, math, nltk, pickle
 
 
-random.seed(266); #Real Seed 
-
-random.seed(528865556);
+random.seed(266);
 
 tknzr = TweetTokenizer();
 
@@ -23,16 +21,27 @@ def predict(clf, x):
 def clean_string(inp):
 	return "".join(i if 0 <= ord(i) < 128 else " " for i in inp);
 
-def splitter(inp):
 
+def neg_occurence(tokens):
+	outp = 0;
+	inseq = False;
+	for i in tokens:
+		if(i[-4:] == "_NEG"):
+			if(not(inseq)):
+				outp+=1;
+			inseq = True;
+		else:
+			inseq = False;
+	return outp;
+
+def splitter(inp):
 	inp = re.sub("(https?://[^ ]*)|(&[a-zA-Z0-9]+;)", " ", inp); #Remove URL, @<Username>, &nbsp;
 	inp = re.sub("([@][a-zA-Z0-9_]+)", " @person ", inp);
-
 	tokens = tknzr.tokenize(clean_string(inp));
 	tokens = nltk.sentiment.util.mark_negation(tokens)
 	output = defaultdict(int)
-
 	for i in tokens:
+		i=i.lower();
 		synsets = sentiwordnet.senti_synsets(i)
 		scores = list(x.pos_score() - x.neg_score() for x in synsets)
 		thisscore = sum(scores)/float(len(scores)) if (len(scores) >  0) else 0
@@ -40,34 +49,32 @@ def splitter(inp):
 			output["MS_POS"]+=1;
 		if(thisscore < 0):
 			output["MS_NEG"]+=1;
-		output[i]+=1;
+		if(i[0] == "#"):
+			output[i]+=2;
+		else:
+			output[i]+=1;
 	return output;
 
-# def splitter(inp):
-# 	inp = re.sub("(https?://[^ ]*)|(&[a-zA-Z0-9]+;)", " ", inp.lower()); #Remove URL, @<Username>, &nbsp;
+def splitter1(inp):
+	spoutp = splitter(inp);
+	outp = defaultdict(int);
+	for i in spoutp:
+		outp[i] = spoutp[i]*2;
+		outp[i+"_extend"] = spoutp[i];
+	return outp;
 
-# 	inp = re.sub("([@][a-zA-Z0-9_]+)", " @ ", inp);
-
-# 	tokens = tknzr.tokenize(clean_string(inp));
-# 	tokens = nltk.sentiment.util.mark_negation(tokens)
-# 	output = defaultdict(int)
-
-# 	for i in tokens:
-# 		synsets = sentiwordnet.senti_synsets(i)
-# 		scores = list(x.pos_score() - x.neg_score() for x in synsets)
-# 		thisscore = sum(scores)/float(len(scores)) if (len(scores) >  0) else 0
-# 		if(thisscore > 0):
-# 			output["MS_POS"]+=1;
-# 		if(thisscore < 0):
-# 			output["MS_NEG"]+=1;
-# 		if(i[0] == "#"):
-# 			output[i]+=2;
-# 		else:
-# 			output[i]+=1;
-# 	return output;
+def splitter2(inp):
+	spoutp = splitter(inp);
+	outp = defaultdict(int);
+	for i in spoutp:
+		outp[i] = spoutp[i];
+		outp[i+"_extend"] = spoutp[i]*2;
+	return outp;
 
 
-dumpname = "algo_16l";
+
+
+dumpname = "algo_phi";
 
 def read_csv(fn, shuffled = False):
 	csvfd = open(fn, 'rb');
@@ -82,25 +89,26 @@ def mainfunc():
 	data = [];
 	datatest = [];
 
+	targetcsv = read_csv('modi_train.csv', True);
 	sourcecsv = read_csv('../training.csv', True);
 
-#	sourcecsv = sourcecsv[:50000]
+#	sourcecsv = sourcecsv[:50000];
 
 	print "Done the shuffle";
 	count = 1;
-	for row in sourcecsv:
-		wordbag = splitter(row[1]);
-		if(count <= (len(sourcecsv)*10)/100):
-			datatest.append((row[0], row[1], wordbag))
+	for row in targetcsv:
+		if(count <=  126):
+			datatest.append((row[0], splitter2(row[1])));
 		else:
-			data.append((row[0], row[1], wordbag));
-		if(count % 10000 == 0):
-			print count;
-		count += 1;
+			data.append((row[0], splitter2(row[1])));
+		count+=1;
+	for row in sourcecsv:
+		data.append((row[0], splitter1(row[1])));
+
 	print "Done Spliting Data!";
 
 	CV = sklearn.feature_extraction.DictVectorizer();
-	X = CV.fit_transform(list(i[2] for i in data))
+	X = CV.fit_transform(list(i[1] for i in data))
 	y = np.array(list( i[0] for i in data));
 	if(dumpname != None):
 		f = open("CV"+dumpname+".ms", "wb");
@@ -115,13 +123,12 @@ def mainfunc():
 		pickle.dump(clf, dump_learnt);
 		dump_learnt.close();
 
-	X1 = CV.transform(list(i[2] for i in datatest))
+	X1 = CV.transform(list(i[1] for i in datatest))
 	y1 = clf.predict(X1);
 
 	correct = sum((y1[i] == datatest[i][0]) for i in xrange(len(datatest)));
 	print "correct = ", correct, "datatest = ", len(datatest);
 	print "Accuracy = ", (correct*100.0)/len(datatest);
-
 
 mainfunc();
 

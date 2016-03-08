@@ -10,7 +10,12 @@ from nltk.tokenize import TweetTokenizer
 from nltk.sentiment import *
 import csv,re,random, math, nltk, pickle
 
+
 random.seed(266);
+
+#random.seed(26654545);
+
+
 tknzr = TweetTokenizer();
 
 def predict(clf, x):
@@ -19,12 +24,32 @@ def predict(clf, x):
 def clean_string(inp):
 	return "".join(i if 0 <= ord(i) < 128 else " " for i in inp);
 
+a=set();
+
+def neg_occurence(tokens):
+	outp = 0;
+	inseq = False;
+	for i in tokens:
+		if(i[-4:] == "_NEG"):
+			if(not(inseq)):
+				outp+=1;
+			inseq = True;
+		else:
+			inseq = False;
+	return outp;
+
+
 def splitter(inp):
-	inp = re.sub("(https?://[^ ]*)|([@][a-zA-Z0-9_]+)|(&[a-zA-Z0-9]+;)", "", inp.lower()); #Remove URL, @<Username>, &nbsp;
+	global a;
+	inp = re.sub("(https?://[^ ]*)|(&[a-zA-Z0-9]+;)", " ", inp); #Remove URL, @<Username>, &nbsp;
+	inp = re.sub("([@][a-zA-Z0-9_]+)", " @person ", inp);
 	tokens = tknzr.tokenize(clean_string(inp));
 	tokens = nltk.sentiment.util.mark_negation(tokens)
 	output = defaultdict(int)
 	for i in tokens:
+		if(i.isupper() or i[0].isupper()):
+			output[i]+=1;
+		i=i.lower();
 		synsets = sentiwordnet.senti_synsets(i)
 		scores = list(x.pos_score() - x.neg_score() for x in synsets)
 		thisscore = sum(scores)/float(len(scores)) if (len(scores) >  0) else 0
@@ -33,12 +58,15 @@ def splitter(inp):
 		if(thisscore < 0):
 			output["MS_NEG"]+=1;
 		if(i[0] == "#"):
-			output["MS_hashtag"]+=2;
-			i = i[1:];
-		output[i]+=1;
+			output[i]+=2;
+		else:
+			output[i]+=1;
 	return output;
 
-dumpname = "algo_50k_8march";
+
+dumpname = "algo_600";
+
+dumpname = None;
 
 def read_csv(fn, shuffled = False):
 	csvfd = open(fn, 'rb');
@@ -50,38 +78,43 @@ def read_csv(fn, shuffled = False):
 	return csvdata;
 
 def mainfunc():
+	data = [];
 	datatest = [];
-	sourcecsv = read_csv('../training.csv', True);
+
+	targetcsv = read_csv('modi_train.csv', True);
+
 	print "Done the shuffle";
 	count = 1;
-	for row in sourcecsv:
+	for row in targetcsv:
 		wordbag = splitter(row[1]);
-		if(count <= (len(sourcecsv)*10)/100):
+		if(count <= len(targetcsv) - 600 ):
 			datatest.append((row[0], row[1], wordbag))
 		else:
-			break;
+			data.append((row[0], row[1], wordbag));
 		count += 1;
+	print "Done Spliting Data!";
 
-	print "Parsed Datatest";
+	CV = sklearn.feature_extraction.DictVectorizer();
+	X = CV.fit_transform(list(i[2] for i in data))
+	y = np.array(list( i[0] for i in data));
+	if(dumpname != None):
+		f = open("CV"+dumpname+".ms", "wb");
+		pickle.dump(CV, f);
+		f.close();
 
-	f = open("CV"+dumpname+".ms", "r");
-	CV = pickle.load(f);
-	f.close();
-
-	load_learnt = open( dumpname+".ms", "r" );
-	clf = pickle.load( load_learnt );
-	load_learnt.close();
+	clf = linear_model.LogisticRegression();
+	clf.fit(X, y);
+	print "Learnt !... Ready to save in a file";
+	if(dumpname != None):
+		dump_learnt = open(dumpname+".ms", "wb");
+		pickle.dump(clf, dump_learnt);
+		dump_learnt.close();
 
 	X1 = CV.transform(list(i[2] for i in datatest))
 	y1 = clf.predict(X1);
 
 	correct = sum((y1[i] == datatest[i][0]) for i in xrange(len(datatest)));
 	print "correct = ", correct, "datatest = ", len(datatest);
-	if(True):
-		print "Accuracy = ", (correct*100.0)/len(datatest);
-	else:
-		print "Accuracy = ", (correct*100.0)/sum((i[0] in ["0", "4"]) for i in datatest);
-
-
+	print "Accuracy = ", (correct*100.0)/len(datatest);
 mainfunc();
 
