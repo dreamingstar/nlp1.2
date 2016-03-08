@@ -25,10 +25,8 @@ def splitter(inp):
 	tokens = nltk.sentiment.util.mark_negation(tokens)
 	return tokens;
 
-_isloading = False;
-# dumpname = "algo_15l_638";
-# dumpname = "algo_15l";
-#dumpname = "algo_target600";
+_isloading = True;
+dumpname = "algo_15l";
 
 def read_csv(fn, shuffled = False):
 	csvfd = open(fn, 'rb');
@@ -42,7 +40,7 @@ def read_csv(fn, shuffled = False):
 def mainfunc():
 	data = [];
 	datatest = [];
-	weight = [];
+
 
 	sourcecsv = read_csv('../training.csv', True);
 	targetcsv = read_csv('modi_train.csv', True);
@@ -186,8 +184,6 @@ def mainfunc():
 		load_learnt = open( dumpname+".ms", "r" );
 		clf = pickle.load( load_learnt );
 		load_learnt.close();
-
-
 
 
 	if(False):
